@@ -13,9 +13,10 @@ SPIDER_MODULES = ["iscrapy.spiders"]
 NEWSPIDER_MODULE = "iscrapy.spiders"
 
 CRYPTO_IDS = ["1", "1027"]
-API_KEY = '#coin-market api key here'
-TELE_TOKEN = "#telegram bot token"
-TELE_CHAT_ID = "#telegram channel id"
+API_KEY = 'e9554a94-3805-4b31-8434-f37483600f2c'
+TELE_TOKEN = "5444579039:AAFkGPm528Jqajl3hbGdzVLle7Eql05W3Pk"
+TELE_CHAT_ID = "@scrapy_crypto_infos"
+TELE_ALARM_ID = "@scrapy_crypto_infos"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "iscrapy (+http://www.yourdomain.com)"

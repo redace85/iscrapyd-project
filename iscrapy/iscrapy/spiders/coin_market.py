@@ -1,11 +1,11 @@
 import scrapy
-from scrapy.linkextractors import LinkExtractor
+
+from iscrapy.items import IscrapyItem 
 
 
 class CoinMarketSpider(scrapy.Spider):
     name = "coin-market"
     allowed_domains = ["pro-api.coinmarketcap.com"]
-    crypto_ids = list()
 
     def start_requests(self):
         self.crypto_ids = self.settings.getlist('CRYPTO_IDS')
@@ -17,13 +17,13 @@ class CoinMarketSpider(scrapy.Spider):
             raise Exception('No api_key id is given!')
 
         ids_string = ','.join(self.crypto_ids)
-        url = f'https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?id={ids_string}&aux=total_supply'
+        self.url = f'https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?id={ids_string}&aux=total_supply'
         headers = {
                 'X-Cmc_Pro_Api_Key' : api_key,
                 'User-Agent' : 'PostmanRuntime/7.36.0',
                 'Accept-Encoding' : 'gzip, deflate, br'
                 }
-        yield scrapy.http.JsonRequest(url=url, dont_filter=True, headers=headers, callback=self.parse)
+        yield scrapy.http.JsonRequest(url=self.url, dont_filter=True, headers=headers, callback=self.parse)
 
     def parse(self, response):
         if response.status != 200:
@@ -31,19 +31,32 @@ class CoinMarketSpider(scrapy.Spider):
         
         res = response.json()
 
-        # fetch data unit by id
-        for i in self.crypto_ids:
-            unit = res['data'][i]
+        try:
+            # fetch data unit by id
+            for i in self.crypto_ids:
+                unit = res['data'][i]
+                data = {} 
+                data['symbol'] = unit['symbol']
+                data['last_updated'] = unit['last_updated']
 
-            # returned item
-            item = {}
-            item['symbol'] = unit['symbol']
-            item['last_updated'] = unit['last_updated']
+                quote_usd = unit['quote']['USD']
+                data['price'] = quote_usd['price']
+                data['percent_change_1h'] = quote_usd['percent_change_1h'],
+                data['percent_change_24h'] = quote_usd['percent_change_24h'],
 
-            quote_usd = unit['quote']['USD']
-            item['price'] = quote_usd['price']
-            item['percent_change_1h'] = quote_usd['percent_change_1h']
-            item['percent_change_24h'] = quote_usd['percent_change_24h']
-
+                # assemble msg to send
+                msg = '{}\nprice: {}\nPC1h: {}\nPC24h: {}\nUpdated: {}'.format(
+                        data['symbol'],
+                        data['price'],
+                        data['percent_change_1h'],
+                        data['percent_change_24h'],
+                        data['last_updated']
+                        )
+                item = IscrapyItem(msg=msg, failed=False, data=data)
+                yield item
+        except:
+            # parse failed; notify developer
+            msg = f'spider: {self.name} url: {self.url}'
+            item = IscrapyItem(msg=msg, failed=True)
             yield item
 

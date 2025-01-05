@@ -7,6 +7,10 @@ import scrapy
 
 
 class IscrapyItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+   # data to store info
+   data = scrapy.Field()
+   # whether failed
+   failed = scrapy.Field()
+   # msg string to send
+   msg = scrapy.Field()
+   pass
