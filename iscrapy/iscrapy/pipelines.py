@@ -52,7 +52,7 @@ class ConditionalPipeline:
             self.con.close()
 
     def process_item(self, item, spider):
-        if spider.name == 'coin-market':
+        if spider.name in ["coin-market"]:
             if self.coin_market_process_item(item):
                 raise DropItem(f'Drop item')
 
@@ -89,9 +89,8 @@ class TelegramPipeline:
     '''
     this pipline is used for send telegram msg.
     '''
-    def __init__(self, tele_token, chat_id, alarm_id):
+    def __init__(self, tele_token, alarm_id):
         self.tele_token = tele_token
-        self.chat_id = chat_id
         self.alarm_id = alarm_id
         self.bot = telebot.TeleBot(self.tele_token, threaded=False)
 
@@ -99,18 +98,17 @@ class TelegramPipeline:
     def from_crawler(cls, crawler):
         return cls(
                 tele_token=crawler.settings.get('TELE_TOKEN'),
-                chat_id=crawler.settings.get('TELE_CHAT_ID'),
                 alarm_id=crawler.settings.get('TELE_ALARM_ID'),
                 )
 
-    def process_item(self, item, _spider):
+    def process_item(self, item, spider):
         ia = ItemAdapter(item)
         msg = ia['msg']
         msg = formatting.format_text(msg, separator="\n\n")
 
         # send message to telegram
         if ia['failed'] is False:
-            self.bot.send_message(self.chat_id, msg, parse_mode='HTML')
+            self.bot.send_message(spider.chat_id, msg, parse_mode='HTML')
         else:
             self.bot.send_message(self.alarm_id, msg, parse_mode='HTML')
 

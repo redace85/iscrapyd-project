@@ -7,6 +7,8 @@ import scrapy
 
 
 class IscrapyItem(scrapy.Item):
+   # item_id string to send
+   item_id = scrapy.Field()
    # data to store info
    data = scrapy.Field()
    # whether failed

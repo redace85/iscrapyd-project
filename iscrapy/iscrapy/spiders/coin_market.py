@@ -5,6 +5,7 @@ from iscrapy.items import IscrapyItem
 
 class CoinMarketSpider(scrapy.Spider):
     name = "coin-market"
+    chat_id = "@scrapy_crypto_infos"
     allowed_domains = ["pro-api.coinmarketcap.com"]
 
     def start_requests(self):
@@ -43,6 +44,8 @@ class CoinMarketSpider(scrapy.Spider):
                 data['price'] = quote_usd['price']
                 data['percent_change_1h'] = quote_usd['percent_change_1h'],
                 data['percent_change_24h'] = quote_usd['percent_change_24h'],
+                print(type(quote_usd['percent_change_24h']))
+                print(type(data['percent_change_24h']))
 
                 # assemble msg to send
                 msg = '{}\nprice: {}\nPC1h: {}\nPC24h: {}\nUpdated: {}'.format(
