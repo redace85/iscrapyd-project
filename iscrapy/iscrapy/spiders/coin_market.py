@@ -55,7 +55,7 @@ class CoinMarketSpider(scrapy.Spider):
                         data['percent_change_24h'],
                         data['last_updated']
                         )
-                item = IscrapyItem(msg=msg, failed=False, data=data)
+                item = IscrapyItem(msg=msg, failed=False, data=data, item_id=unit['symbol'])
                 yield item
         except:
             # parse failed; notify developer
