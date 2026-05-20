@@ -6,13 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a [Scrapy](https://scrapy.org/) + [scrapyd](https://scrapyd.readthedocs.io/) project that scrapes financial data and delivers alerts via Telegram. The project root is a Python virtualenv; the Scrapy project lives in `iscrapy/`.
 
+## Development Setup
+
+```bash
+source bin/activate            # activate the venv (project root IS the venv)
+pip install -r requirements.txt
+```
+
 ## Environment Setup
 
 Copy `.env.example` and populate the variables before running:
 
 ```
 CMC_API_KEY=    # CoinMarketCap Pro API key
-DB_PATH=        # Directory path where SQLite DBs are written
+DB_PATH=        # Directory path where SQLite DBs are written (MUST be set — default in settings.py is a hardcoded personal path)
 TELE_TOKEN=     # Telegram bot token
 TELE_ALARM_ID=  # Telegram channel/chat ID for error alerts
 ```
@@ -30,6 +37,9 @@ scrapy crawl coin-market
 # Run Yahoo Finance spider (symbol passed as spider arg)
 scrapy crawl yahoo-finance -a symbol=BTC-USD
 scrapy crawl yahoo-finance -a symbol=GC=F   # gold
+
+# Start the local scrapyd daemon (required before deploying)
+scrapyd
 
 # Deploy to local scrapyd (must be running on port 6800)
 scrapyd-deploy
@@ -56,9 +66,9 @@ All spiders yield `IscrapyItem` with four fields:
 
 ### Pipelines (`iscrapy/iscrapy/pipelines.py`)
 
-- **`ConditionalPipeline`** — deduplicates `coin-market` items using a local SQLite DB (`./coin-market.db`). Drops an item if the price hasn't moved more than 1% since the last run.
+- **`ConditionalPipeline`** — deduplicates `coin-market` items using a local SQLite DB at `iscrapy/coin-market.db` (relative to the working directory where `scrapy crawl` runs). Drops an item if the price hasn't moved more than 1% since the last run.
 - **`StorePipeline`** — persists `yahoo-finance` OHLCV rows to `<DB_PATH>/<symbol>.db` using an `ohlc` table with `timestamp` as primary key (upsert semantics).
-- **`TelegramPipeline`** — sends formatted messages to the configured Telegram channel. Disabled by default; enable in `ITEM_PIPELINES` in `settings.py`.
+- **`TelegramPipeline`** — sends formatted messages to Telegram. Disabled by default; enable in `ITEM_PIPELINES` in `settings.py`. Successful items are sent to `spider.chat_id`; failed items go to `TELE_ALARM_ID`. Each spider using this pipeline must define a `chat_id` attribute.
 
 ### scrapyd
 
