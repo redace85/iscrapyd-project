@@ -54,7 +54,7 @@ class ConditionalPipeline:
     def process_item(self, item, spider):
         if spider.name in ["coin-market"]:
             if self.coin_market_process_item(item):
-                raise DropItem(f'Drop item')
+                raise DropItem(f'Drop dup item')
 
         return item
 
@@ -104,6 +104,9 @@ class TelegramPipeline:
     def process_item(self, item, spider):
         ia = ItemAdapter(item)
         msg = ia['msg']
+        if msg == '':
+            raise DropItem(f'Drop tele item')
+
         msg = formatting.format_text(msg, separator="\n\n")
 
         # send message to telegram
@@ -117,4 +120,64 @@ class TelegramPipeline:
 
         return item
 
+
+class StorePipeline:
+    '''
+    this pipline is used for save data.
+    '''
+    def __init__(self, tele_token, alarm_id, db_path):
+        self.tele_token = tele_token
+        self.alarm_id = alarm_id
+        self.db_path = db_path
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+                tele_token=crawler.settings.get('TELE_TOKEN'),
+                alarm_id=crawler.settings.get('TELE_ALARM_ID'),
+                db_path=crawler.settings.get('DB_PATH'),
+                )
+
+    def open_spider(self, spider):
+        # databases for specific spiders
+        if spider.name == "yahoo-finance":
+            db_name = os.path.join(self.db_path, f'{spider.symbol}.db')
+
+            self.db_data = dict()
+            if not os.path.isfile(db_name):
+                # create table if not exist
+                self.con = sqlite3.connect(db_name)
+                cur = self.con.cursor()
+                cur.execute('CREATE TABLE ohlc(timestamp INTEGER PRIMARY KEY,\
+                             open INTEGER, high INTEGER, low INTEGER, close INTEGER, volume INTEGER)')
+            else:
+                self.con = sqlite3.connect(db_name)
+            self.data = list()
+
+    def close_spider(self, spider):
+        if spider.name == "yahoo-finance":
+            # update data
+            if self.data and len(self.data) != 0:
+                cur = self.con.cursor()
+                cur.executemany('INSERT OR REPLACE INTO ohlc VALUES(?, ?, ?, ?, ?, ?)', self.data)
+                self.con.commit()
+            self.con.close()
+
+    def process_item(self, item, spider):
+        ia = ItemAdapter(item)
+        if ia['failed']:
+            return item
+
+        data = ia['data']
+
+        self.data.append((
+            data['timestamp'],
+            data['open'],
+            data['high'],
+            data['low'],
+            data['close'],
+            data['volume']
+        ))
+
+        return item
 

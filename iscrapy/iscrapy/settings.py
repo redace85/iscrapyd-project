@@ -7,16 +7,25 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
+import os
+
 BOT_NAME = "iscrapy"
 
 SPIDER_MODULES = ["iscrapy.spiders"]
 NEWSPIDER_MODULE = "iscrapy.spiders"
 
+# coin-market
 CRYPTO_IDS = ["1", "1027"]
-API_KEY = 'e9554a94-3805-4b31-8434-f37483600f2c'
-TELE_TOKEN = "5444579039:AAFkGPm528Jqajl3hbGdzVLle7Eql05W3Pk"
-TELE_CHAT_ID = "@scrapy_crypto_infos"
-TELE_ALARM_ID = "@scrapy_crypto_infos"
+API_KEY = os.environ.get('CMC_API_KEY', '')
+
+# yahoo-finance
+
+# store-pipline
+DB_PATH = os.environ.get('DB_PATH', '/Users/liuji/')
+
+# tele-pipline
+TELE_TOKEN = os.environ.get('TELE_TOKEN', '')
+TELE_ALARM_ID = os.environ.get('TELE_ALARM_ID', "@scrapy_crypto_infos")
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "iscrapy (+http://www.yourdomain.com)"
@@ -69,7 +78,8 @@ ROBOTSTXT_OBEY = False
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    "iscrapy.pipelines.ConditionalPipeline": 100,
-   "iscrapy.pipelines.TelegramPipeline": 300,
+   "iscrapy.pipelines.StorePipeline": 150,
+   # "iscrapy.pipelines.TelegramPipeline": 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

@@ -42,10 +42,8 @@ class CoinMarketSpider(scrapy.Spider):
 
                 quote_usd = unit['quote']['USD']
                 data['price'] = quote_usd['price']
-                data['percent_change_1h'] = quote_usd['percent_change_1h'],
-                data['percent_change_24h'] = quote_usd['percent_change_24h'],
-                print(type(quote_usd['percent_change_24h']))
-                print(type(data['percent_change_24h']))
+                data['percent_change_1h'] = quote_usd['percent_change_1h']
+                data['percent_change_24h'] = quote_usd['percent_change_24h']
 
                 # assemble msg to send
                 msg = '{}\nprice: {}\nPC1h: {}\nPC24h: {}\nUpdated: {}'.format(
@@ -57,9 +55,8 @@ class CoinMarketSpider(scrapy.Spider):
                         )
                 item = IscrapyItem(msg=msg, failed=False, data=data, item_id=unit['symbol'])
                 yield item
-        except:
-            # parse failed; notify developer
-            msg = f'spider: {self.name} url: {self.url}'
+        except Exception as e:
+            msg = f'spider: {self.name} url: {self.url} error: {e}'
             item = IscrapyItem(msg=msg, failed=True)
             yield item
 
