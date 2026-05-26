@@ -52,7 +52,7 @@ class ConditionalPipeline:
             self.con.close()
 
     def process_item(self, item, spider):
-        if spider.name in ["coin-market"]:
+        if spider.name == "coin-market":
             if self.coin_market_process_item(item):
                 raise DropItem(f'Drop dup item')
 
@@ -140,7 +140,7 @@ class StorePipeline:
 
     def open_spider(self, spider):
         # databases for specific spiders
-        if spider.name == "yahoo-finance":
+        if spider.name in ("yahoo-finance", "sina-finance"):
             db_name = os.path.join(self.db_path, f'{spider.symbol}.db')
 
             self.db_data = dict()
@@ -149,13 +149,13 @@ class StorePipeline:
                 self.con = sqlite3.connect(db_name)
                 cur = self.con.cursor()
                 cur.execute('CREATE TABLE ohlc(timestamp INTEGER PRIMARY KEY,\
-                             open INTEGER, high INTEGER, low INTEGER, close INTEGER, volume INTEGER)')
+                             open REAL, high REAL, low REAL, close REAL, volume INTEGER)')
             else:
                 self.con = sqlite3.connect(db_name)
             self.data = list()
 
     def close_spider(self, spider):
-        if spider.name == "yahoo-finance":
+        if spider.name in ("yahoo-finance", "sina-finance"):
             # update data
             if self.data and len(self.data) != 0:
                 cur = self.con.cursor()

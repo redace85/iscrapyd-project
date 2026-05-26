@@ -4,72 +4,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a [Scrapy](https://scrapy.org/) + [scrapyd](https://scrapyd.readthedocs.io/) project that scrapes financial data and delivers alerts via Telegram. The project root is a Python virtualenv; the Scrapy project lives in `iscrapy/`.
+**iscrapyd-project** is a Scrapy-based data collection system for financial market data (crypto and stocks), deployed via scrapyd daemon with optional Telegram alerting.
 
-## Development Setup
+## Setup
+
+The project root is itself a Python 3.9.6 virtual environment:
 
 ```bash
-source bin/activate            # activate the venv (project root IS the venv)
+source bin/activate
 pip install -r requirements.txt
 ```
 
-## Environment Setup
-
-Copy `.env.example` and populate the variables before running:
-
-```
-CMC_API_KEY=    # CoinMarketCap Pro API key
-DB_PATH=        # Directory path where SQLite DBs are written (MUST be set — default in settings.py is a hardcoded personal path)
-TELE_TOKEN=     # Telegram bot token
-TELE_ALARM_ID=  # Telegram channel/chat ID for error alerts
-```
+Required environment variables (see `.env.example`):
+- `CMC_API_KEY` — CoinMarketCap Pro API key (required for coin-market spider)
+- `DB_PATH` — Path for SQLite databases
+- `TELE_TOKEN` — Telegram bot token
+- `TELE_ALARM_ID` — Telegram chat ID for alerts
 
 ## Running Spiders
 
-All Scrapy commands must be run from inside `iscrapy/` (where `scrapy.cfg` lives):
+All `scrapy` commands must be run from the `iscrapy/` directory (where `scrapy.cfg` lives):
 
 ```bash
 cd iscrapy
-
-# Run CoinMarketCap spider
 scrapy crawl coin-market
-
-# Run Yahoo Finance spider (symbol passed as spider arg)
 scrapy crawl yahoo-finance -a symbol=BTC-USD
-scrapy crawl yahoo-finance -a symbol=GC=F   # gold
+scrapy crawl sina-finance -a symbol=sz399006
+```
 
-# Start the local scrapyd daemon (required before deploying)
-scrapyd
+To run the scrapyd daemon and deploy spiders:
 
-# Deploy to local scrapyd (must be running on port 6800)
-scrapyd-deploy
+```bash
+scrapyd                  # starts daemon on localhost:6800
+scrapyd-deploy           # deploys current project to local daemon
 ```
 
 ## Architecture
 
-### Data flow
+### Data Flow
 
-Spider → `ConditionalPipeline` (priority 100) → `StorePipeline` (priority 150) → optional `TelegramPipeline` (disabled by default, priority 300)
+```
+Spider → ConditionalPipeline (100) → StorePipeline (150) → TelegramPipeline (300, disabled)
+```
 
-### Spiders (`iscrapy/iscrapy/spiders/`)
-
-- **`coin_market.py`** — hits CoinMarketCap Pro API v2 for cryptocurrency quotes. Crypto IDs to fetch are configured via `CRYPTO_IDS` in settings (default: Bitcoin `"1"` and Ethereum `"1027"`).
-- **`yahoo_finance.py`** — hits Yahoo Finance chart API for daily OHLCV data. `symbol`, `period1`, and `period2` can be passed as spider arguments; defaults to last 5 days of `BTC-USD`.
-
-### Items (`iscrapy/iscrapy/items.py`)
-
-All spiders yield `IscrapyItem` with four fields:
-- `item_id` — unique identifier (symbol string or timestamp int)
-- `data` — dict with the scraped payload
-- `failed` — bool; on parse error, `failed=True` and `msg` contains the error
-- `msg` — formatted string for Telegram
+All data passes through `IscrapyItem` with four fields: `item_id` (dedup key), `data` (payload dict), `failed` (bool), `msg` (Telegram-formatted string).
 
 ### Pipelines (`iscrapy/iscrapy/pipelines.py`)
 
-- **`ConditionalPipeline`** — deduplicates `coin-market` items using a local SQLite DB at `iscrapy/coin-market.db` (relative to the working directory where `scrapy crawl` runs). Drops an item if the price hasn't moved more than 1% since the last run.
-- **`StorePipeline`** — persists `yahoo-finance` OHLCV rows to `<DB_PATH>/<symbol>.db` using an `ohlc` table with `timestamp` as primary key (upsert semantics).
-- **`TelegramPipeline`** — sends formatted messages to Telegram. Disabled by default; enable in `ITEM_PIPELINES` in `settings.py`. Successful items are sent to `spider.chat_id`; failed items go to `TELE_ALARM_ID`. Each spider using this pipeline must define a `chat_id` attribute.
+- **ConditionalPipeline** — Deduplicates `coin-market` items via SQLite; drops items where price change < 1% from the previous run.
+- **StorePipeline** — Persists OHLCV data to `<DB_PATH>/<symbol>.db` using upsert on the `ohlc` table (keyed on timestamp).
+- **TelegramPipeline** — Sends `msg` field to Telegram; disabled by default in `settings.py`.
 
-### scrapyd
+### Spiders (`iscrapy/iscrapy/spiders/`)
 
-The local scrapyd daemon (`http://localhost:6800`) hosts deployed spiders. The `iscrapy/dbs/` directory contains scrapyd's internal databases.
+| Spider | Source | Key argument |
+|--------|--------|--------------|
+| `coin_market.py` | CoinMarketCap Pro API v2 | none (uses `CRYPTO_IDS` setting) |
+| `yahoo_finance.py` | Yahoo Finance chart API | `symbol` (default: `BTC-USD`) |
+| `sina_finance.py` | Sina Finance proprietary API | `symbol` (default: `sz399006`) |
+
+`CRYPTO_IDS` in `settings.py` controls which coin IDs are fetched (currently `["1", "1027"]` = BTC, ETH).
+
+### Key Settings (`iscrapy/iscrapy/settings.py`)
+
+- `CRYPTO_IDS` — List of CoinMarketCap coin IDs to track
+- `DB_PATH` — Base path for SQLite `.db` files
+- `ITEM_PIPELINES` — Pipeline priority map; set value to `None` to disable a pipeline
+
+## No Tests
+
+There are no automated tests. Validate changes by running the spider directly and inspecting logs/database output.
